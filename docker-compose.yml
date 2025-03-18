@@ -1,0 +1,65 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - flowith-network
+    environment:
+      - VITE_API_URL=http://localhost:8000
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@database:5432/flowith
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-3.5-turbo
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - CORS_ORIGINS=["http://localhost:3000"]
+    networks:
+      - flowith-network
+    volumes:
+      - ./backend:/app
+
+  database:
+    image: ankane/pgvector:latest
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=flowith
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - flowith-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - flowith-network
+    volumes:
+      - redis_data:/data
+
+networks:
+  flowith-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
